@@ -13,13 +13,10 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    TextEditingController emailController = TextEditingController();
-    TextEditingController passwordController = TextEditingController();
-
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Login Page'),
+          title: const Text('Student Information System'),
         ),
         body: Padding(
           padding: const EdgeInsets.all(30.0),
@@ -32,35 +29,36 @@ class MainApp extends StatelessWidget {
                     fontSize: 24,
                   ),
                 ),
-                const SizedBox(height: 36),
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'Email',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'Password',
-                  ),
-                ),
-                Builder(builder: (context) {
-                  return ElevatedButton(
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: Builder(
+                    builder: (context) => ElevatedButton(
                       onPressed: () {
                         Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) => CoursesPage(
-                                    email: emailController.text,
-                                    password: passwordController.text)));
+                                builder: (context) => const CoursesPage()));
                       },
-                      child: const Text('Login'));
-                }),
+                      child: const Text('Courses'),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: Builder(
+                    builder: (context) => ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const StudentsPage()));
+                      },
+                      child: const Text('Students'),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -87,10 +85,9 @@ class Course {
 }
 
 class CoursesPage extends StatefulWidget {
-  const CoursesPage({super.key, required this.email, required this.password});
-
-  final String email;
-  final String password;
+  const CoursesPage({
+    super.key,
+  });
 
   @override
   State<CoursesPage> createState() => _CoursesPageState();
@@ -102,8 +99,6 @@ class _CoursesPageState extends State<CoursesPage> {
     final response = await http.get(Uri.http(apiUrl, '/courses'), headers: {
       'Content-Type': 'application/json',
     });
-
-    print('Response status code: ${response.statusCode}');
 
     if (response.statusCode == 200) {
       final body = json.decode(response.body);
@@ -138,13 +133,6 @@ class _CoursesPageState extends State<CoursesPage> {
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
-            Column(
-              children: [
-                Text('Email: ${widget.email}'),
-                Text(('Password: ${widget.password}')),
-              ],
-            ),
-            const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -430,6 +418,311 @@ class _EditCoursePageState extends State<EditCoursePage> {
                 });
               },
               child: const Text('Update Course'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class Student {
+  final String studentId;
+  final String studentName;
+  final String courseName;
+
+  Student(
+      {required this.studentId,
+      required this.studentName,
+      required this.courseName});
+
+  factory Student.fromJson(Map<String, dynamic> json) {
+    return Student(
+      studentId: json['student_id'].toString(),
+      studentName: json['student_name'],
+      courseName: json['course_name'],
+    );
+  }
+}
+
+class StudentsPage extends StatefulWidget {
+  const StudentsPage({
+    super.key,
+  });
+
+  @override
+  State<StudentsPage> createState() => _StudentsPageState();
+}
+
+class _StudentsPageState extends State<StudentsPage> {
+  static Future<List<Student>> getStudents() async {
+    logger.log('Fetching courses from API');
+    final response = await http.get(Uri.http(apiUrl, '/students'), headers: {
+      'Content-Type': 'application/json',
+    });
+
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      logger.log('Response body: $body');
+      if (body is Map<String, dynamic>) {
+        final List<dynamic> messages = body['Message'] ?? [];
+        return messages.map<Student>((json) => Student.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to parse students from API');
+      }
+    } else {
+      throw Exception(
+          'Failed to load students from API with status code ${response.statusCode}');
+    }
+  }
+
+  Future<List<Student>> studentsFuture = getStudents();
+
+  Future<void> refreshStudents() async {
+    setState(() {
+      studentsFuture = getStudents();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Student Dashboard'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => AddCoursePage(
+                                  refreshCourses: refreshStudents,
+                                )));
+                  },
+                  child: const Text('Add Student'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Courses',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    )),
+                ElevatedButton(
+                    onPressed: () {
+                      refreshStudents();
+                    },
+                    child: const Text('Refresh')),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Column(
+              children: [
+                FutureBuilder<List<Student>>(
+                  future: studentsFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const CircularProgressIndicator();
+                    } else if (snapshot.connectionState !=
+                        ConnectionState.done) {
+                      return const CircularProgressIndicator();
+                    } else if (snapshot.hasError) {
+                      return Text('Error: ${snapshot.error}');
+                    } else if (snapshot.hasData) {
+                      if (snapshot.data!.isEmpty) {
+                        return const Text('No students found');
+                      }
+                      return ListView.builder(
+                        shrinkWrap: true,
+                        scrollDirection: Axis.vertical,
+                        itemCount: snapshot.data!.length,
+                        itemBuilder: (context, index) {
+                          return Container(
+                            margin: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              children: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          snapshot.data![index].studentName,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                        Text(
+                                          snapshot.data![index].courseName,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold),
+                                        )
+                                      ]),
+                                ),
+                                Row(
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: () {},
+                                      style: ElevatedButton.styleFrom(
+                                        shape: const CircleBorder(),
+                                        padding: const EdgeInsets.all(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.edit,
+                                        color: Colors.blue,
+                                        size: 24.0,
+                                      ),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) {
+                                            return AlertDialog(
+                                              title:
+                                                  const Text('Delete Student'),
+                                              content: const Text(
+                                                  'Are you sure you want to delete this student?'),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () {
+                                                    Navigator.pop(context);
+                                                  },
+                                                  child: const Text('Cancel'),
+                                                ),
+                                                TextButton(
+                                                  onPressed: () {
+                                                    http
+                                                        .delete(Uri.http(apiUrl,
+                                                            '/student/${snapshot.data![index].studentId}'))
+                                                        .then((response) {
+                                                      if (response.statusCode ==
+                                                          200) {
+                                                        refreshStudents();
+                                                        Navigator.pop(context);
+                                                      } else {
+                                                        throw Exception(
+                                                            'Failed to delete student with status code ${response.statusCode}');
+                                                      }
+                                                    });
+                                                  },
+                                                  child: const Text('Delete'),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        shape: const CircleBorder(),
+                                        padding: const EdgeInsets.all(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
+                                        size: 24.0,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    } else {
+                      return const Text('No students found');
+                    }
+                  },
+                )
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AddStudentPage extends StatefulWidget {
+  final Function refreshStudents;
+
+  const AddStudentPage({super.key, required this.refreshStudents});
+
+  @override
+  State<AddStudentPage> createState() => _AddStudentPageState();
+}
+
+class _AddStudentPageState extends State<AddStudentPage> {
+  TextEditingController studentNameController = TextEditingController();
+  TextEditingController courseIdController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Add Student'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: studentNameController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Student Name',
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: courseIdController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Course ID',
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                http
+                    .post(Uri.http(apiUrl, '/student'),
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: json.encode({
+                          'student_name': studentNameController.text,
+                          'course_id': courseIdController.text,
+                        }))
+                    .then((response) {
+                  if (response.statusCode == 200) {
+                    widget.refreshStudents();
+                    Navigator.pop(context);
+                  } else {
+                    throw Exception(
+                        'Failed to add student with status code ${response.statusCode}');
+                  }
+                });
+              },
+              child: const Text('Add Student'),
             ),
           ],
         ),
