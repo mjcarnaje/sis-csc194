@@ -1,0 +1,30 @@
+{% extends "./_helpers/main_layout.html" %}
+{% block content %}
+  <div class="flex flex-col max-w-4xl gap-8 p-8 mx-auto rounded-lg shadow-lg bg-neutral">
+    <div class="p-4 rounded-md bg-base-200 student-card"></div>
+  </div>
+  <script>
+    const getStudent = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/student/' + {{student_id}});
+        const json = await response.json();
+        const data = json.message;
+
+        const studentCard = document.querySelector('.student-card');
+        
+        studentCard.innerHTML = `
+          <div class="flex flex-col gap-4">
+            <div class="flex flex-col gap-1">
+              <h2 class="text-lg font-semibold text-primary-800">${data.student_name}</h2>
+              <p>${data.course_name}</p>
+            </div>
+          </div>
+        `;
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    getStudent();
+  </script>
+{% endblock content %}

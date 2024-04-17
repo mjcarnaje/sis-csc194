@@ -1,0 +1,21 @@
+{% block navbar %}
+  {% set navigations = [
+      { 'name': 'Home', 'url': url_for('home'), 'page': 'home'},
+      { 'name': 'Courses', 'url': url_for('courses'), 'page': 'courses'},
+      { 'name': 'Students', 'url': url_for('students'), 'page': 'students'},
+    ] %}
+  <nav class="sticky top-0 z-50 flex items-center justify-center w-full h-20 px-4 bg-neutral md:px-8 lg:px-12">
+    <div class="flex items-center justify-center w-full gap-8 max-w-7xl">
+      <ul class="hidden space-x-4 lg:flex">
+        {% for navigation in navigations %}
+          <li class="rounded-lg cursor-pointer">
+            <a href="{{ navigation.url }}"
+               class="flex items-center px-4 py-2 transition-all duration-300 text-md hover:text-opacity-80 {{ 'font-semibold text-primary-800' if active_page == navigation.page else 'font-medium' }}">
+              {{ navigation.name }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </nav>
+{% endblock navbar %}

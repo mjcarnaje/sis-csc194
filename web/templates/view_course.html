@@ -1,0 +1,30 @@
+{% extends "./_helpers/main_layout.html" %}
+{% block content %}
+  <div class="flex flex-col max-w-4xl gap-8 p-8 mx-auto rounded-lg shadow-lg bg-neutral">
+    <div class="p-4 rounded-md bg-base-200 course-card"></div>
+    <div>
+      <a class="btn" href="{{ url_for('add_student', id=course_id) }}">Add Student</a>
+    </div>
+  </div>
+  <script>
+    const getCourse = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/course/' + {{course_id}});
+        const json = await response.json();
+        const data = json.message;
+
+        const courseCard = document.querySelector('.course-card');
+        
+        courseCard.innerHTML = `
+          <div class="flex flex-col gap-4">
+            <h2 class="text-lg font-semibold text-primary-800">${data.course_name}</h2>
+          </div>
+        `;
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    getCourse();
+  </script>
+{% endblock content %}

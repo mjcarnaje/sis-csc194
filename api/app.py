@@ -27,6 +27,8 @@ def spcall(qry, param, commit=False):
     except:
         res = [("Error: " + str(sys.exc_info()[0]) +
                 " " + str(sys.exc_info()[1]),)]
+        print(res)
+        db_connection.rollback()
     return res
 
 @app.route('/courses', methods=['GET'])

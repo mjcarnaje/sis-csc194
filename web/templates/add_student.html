@@ -1,0 +1,94 @@
+{% extends "./_helpers/main_layout.html" %}
+{% block content %}
+  <div class="flex flex-col max-w-4xl gap-8 p-8 mx-auto rounded-lg shadow-lg bg-neutral">
+    <form id="student-form">
+      <div class="flex flex-col gap-4">
+        <div id="student_name_form_item" class="flex flex-col gap-2">
+          <label for="student_name" class="text-lg font-semibold text-primary-800">Student Name</label>
+          <input type="text"
+                 id="student_name"
+                 name="student_name"
+                 class="input"
+                 required>
+        </div>
+        {% if course_id %}
+          <input class="hidden" name="course_id" value="{{ course_id }}">
+        {% else %}
+          <div id="course_id_form_item" class="flex flex-col gap-2">
+            <label for="course_id" class="text-lg font-semibold text-primary-800">Course</label>
+            <select class="w-full max-w-xs select select-bordered"
+                    name="course_id"
+                    required>
+              <option disabled selected>Select a course</option>
+            </select>
+          </div>
+        {% endif %}
+        <button type="submit" class="btn">Save Student</button>
+      </div>
+    </form>
+  </div>
+  <script>
+    const isInCoursePage = "{{ course_id }}"
+  
+    const addStudent = async (event) => {
+      event.preventDefault();
+
+      const form = event.target;
+      const formData = new FormData(form);
+      const studentName = formData.get('student_name');
+      const course_id = formData.get('course_id');
+
+      try {
+        const response = await fetch('http://localhost:5000/student', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ student: studentName, course_id }),
+        });
+
+        const json = await response.json();
+
+        if (response.ok) {
+          form.reset();
+          if (!!isInCoursePage) {
+            window.location.href = "{{ url_for('courses') }}";
+          } else {
+            window.location.href = "{{ url_for('students') }}";
+          }
+        }
+        
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+     const getCourses = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/courses');
+        const json = await response.json();
+        const data = json.Message
+        const select = document.querySelector('select');
+        data.forEach(course => {
+          const option = document.createElement('option');
+          option.value = course.course_id;
+          option.textContent = course.course_name;
+          select.appendChild(option);
+        });
+        
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    
+    if (!isInCoursePage) {
+      getCourses();
+    }
+    
+
+    const form = document.querySelector('#student-form');
+
+    form.addEventListener('submit', addStudent);
+
+  </script>
+{% endblock content %}
