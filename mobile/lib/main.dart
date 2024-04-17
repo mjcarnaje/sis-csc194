@@ -1,125 +1,439 @@
+import 'dart:convert';
+import 'dart:developer' as logger;
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
-  runApp(const MyApp());
+  runApp(const MainApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MainApp extends StatelessWidget {
+  const MainApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    TextEditingController emailController = TextEditingController();
+    TextEditingController passwordController = TextEditingController();
+
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+      home: Scaffold(
+        appBar: AppBar(
+          title: const Text('Login Page'),
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(30.0),
+          child: Center(
+            child: Column(
+              children: [
+                const Text(
+                  "Student Information System",
+                  style: TextStyle(
+                    fontSize: 24,
+                  ),
+                ),
+                const SizedBox(height: 36),
+                TextField(
+                  controller: emailController,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Email',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Password',
+                  ),
+                ),
+                Builder(builder: (context) {
+                  return ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => CoursesPage(
+                                    email: emailController.text,
+                                    password: passwordController.text)));
+                      },
+                      child: const Text('Login'));
+                }),
+              ],
+            ),
+          ),
+        ),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+const String apiUrl = '127.0.0.1:5000';
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
+class Course {
+  final String courseName;
+  final String courseId;
 
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
+  Course({required this.courseName, required this.courseId});
 
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  factory Course.fromJson(Map<String, dynamic> json) {
+    return Course(
+      courseName: json['course_name'],
+      courseId: json['course_id'].toString(),
+    );
+  }
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class CoursesPage extends StatefulWidget {
+  const CoursesPage({super.key, required this.email, required this.password});
 
-  void _incrementCounter() {
+  final String email;
+  final String password;
+
+  @override
+  State<CoursesPage> createState() => _CoursesPageState();
+}
+
+class _CoursesPageState extends State<CoursesPage> {
+  static Future<List<Course>> getCourses() async {
+    logger.log('Fetching courses from API');
+    final response = await http.get(Uri.http(apiUrl, '/courses'), headers: {
+      'Content-Type': 'application/json',
+    });
+
+    print('Response status code: ${response.statusCode}');
+
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      logger.log('Response body: $body');
+      if (body is Map<String, dynamic> && body['Message'] is List) {
+        final List<dynamic> messages = body['Message'];
+        return messages.map<Course>((json) => Course.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to parse courses from API');
+      }
+    } else {
+      throw Exception(
+          'Failed to load courses from API with status code ${response.statusCode}');
+    }
+  }
+
+  Future<List<Course>> coursesFuture = getCourses();
+
+  Future<void> refreshCourses() async {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      coursesFuture = getCourses();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('Dashboard'),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
+          children: [
+            Column(
+              children: [
+                Text('Email: ${widget.email}'),
+                Text(('Password: ${widget.password}')),
+              ],
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => AddCoursePage(
+                                  refreshCourses: refreshCourses,
+                                )));
+                  },
+                  child: const Text('Add Course'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Courses',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    )),
+                ElevatedButton(
+                    onPressed: () {
+                      refreshCourses();
+                    },
+                    child: const Text('Refresh')),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Column(
+              children: [
+                FutureBuilder<List<Course>>(
+                  future: coursesFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const CircularProgressIndicator();
+                    } else if (snapshot.connectionState !=
+                        ConnectionState.done) {
+                      return const CircularProgressIndicator();
+                    } else if (snapshot.hasError) {
+                      return Text('Error: ${snapshot.error}');
+                    } else if (snapshot.hasData) {
+                      return ListView.builder(
+                        shrinkWrap: true,
+                        scrollDirection: Axis.vertical,
+                        itemCount: snapshot.data!.length,
+                        itemBuilder: (context, index) {
+                          return Container(
+                            margin: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  snapshot.data![index].courseName,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (context) =>
+                                                    EditCoursePage(
+                                                        course: snapshot
+                                                            .data![index],
+                                                        refreshCourses:
+                                                            refreshCourses)));
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        shape: const CircleBorder(),
+                                        padding: const EdgeInsets.all(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.edit,
+                                        color: Colors.blue,
+                                        size: 24.0,
+                                      ),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) {
+                                            return AlertDialog(
+                                              title:
+                                                  const Text('Delete Course'),
+                                              content: const Text(
+                                                  'Are you sure you want to delete this course?'),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () {
+                                                    Navigator.pop(context);
+                                                  },
+                                                  child: const Text('Cancel'),
+                                                ),
+                                                TextButton(
+                                                  onPressed: () {
+                                                    http
+                                                        .delete(Uri.http(apiUrl,
+                                                            '/course/${snapshot.data![index].courseId}'))
+                                                        .then((response) {
+                                                      if (response.statusCode ==
+                                                          200) {
+                                                        setState(() {
+                                                          coursesFuture =
+                                                              getCourses();
+                                                        });
+                                                        Navigator.pop(context);
+                                                      } else {
+                                                        throw Exception(
+                                                            'Failed to delete course with status code ${response.statusCode}');
+                                                      }
+                                                    });
+                                                  },
+                                                  child: const Text('Delete'),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        shape: const CircleBorder(),
+                                        padding: const EdgeInsets.all(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
+                                        size: 24.0,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    } else {
+                      return const CircularProgressIndicator();
+                    }
+                  },
+                )
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AddCoursePage extends StatefulWidget {
+  final Function refreshCourses;
+
+  const AddCoursePage({super.key, required this.refreshCourses});
+
+  @override
+  State<AddCoursePage> createState() => _AddCoursePageState();
+}
+
+class _AddCoursePageState extends State<AddCoursePage> {
+  TextEditingController courseNameController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Add Course'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: courseNameController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Course Name',
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                http
+                    .post(Uri.http(apiUrl, '/course'),
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: json.encode({
+                          'course': courseNameController.text,
+                        }))
+                    .then((response) {
+                  if (response.statusCode == 200) {
+                    widget.refreshCourses();
+                    Navigator.pop(context);
+                  } else {
+                    throw Exception(
+                        'Failed to add course with status code ${response.statusCode}');
+                  }
+                });
+              },
+              child: const Text('Add Course'),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+    );
+  }
+}
+
+class EditCoursePage extends StatefulWidget {
+  final Course course;
+  final Function refreshCourses;
+
+  const EditCoursePage(
+      {super.key, required this.course, required this.refreshCourses});
+
+  @override
+  State<EditCoursePage> createState() => _EditCoursePageState();
+}
+
+class _EditCoursePageState extends State<EditCoursePage> {
+  TextEditingController courseNameController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    courseNameController.text = widget.course.courseName;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Edit Course'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: courseNameController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Course Name',
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                http
+                    .put(Uri.http(apiUrl, '/course/${widget.course.courseId}'),
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: json.encode({
+                          'course': courseNameController.text,
+                        }))
+                    .then((response) {
+                  if (response.statusCode == 200) {
+                    widget.refreshCourses();
+                    Navigator.pop(context);
+                  } else {
+                    throw Exception(
+                        'Failed to update course with status code ${response.statusCode}');
+                  }
+                });
+              },
+              child: const Text('Update Course'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
